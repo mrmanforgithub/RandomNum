@@ -94,11 +94,11 @@ class Controller:
 
     def clear_table(self,evt):
         self.ui.tk_table_num_collect.delete(*self.ui.tk_table_num_collect.get_children())
-        self.load_if = None
-        self.ui.tk_label_load_label.config(text="目前读取内容：空")
-        cb = self.ui.tk_select_box_select_method
-        cb['values'] =  ["数字"]  # 设置Combobox的选项为列数的范围
-        cb.set("数字")  # 默认选择第一列
+        # self.load_if = None
+        # self.ui.tk_label_load_label.config(text="目前读取内容：空")
+        # cb = self.ui.tk_select_box_select_method
+        # cb['values'] =  ["数字"]  # 设置Combobox的选项为列数的范围
+        # cb.set("数字")  # 默认选择第一列
 
     def load_execl(self,evt):
         file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx;*.xls")])
