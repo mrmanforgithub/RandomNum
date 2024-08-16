@@ -32,9 +32,9 @@ class WinGUI(Window):
         screenheight = self.winfo_screenheight()
         geometry = '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2)
         self.geometry(geometry)
-        
+
         self.minsize(width=width, height=height)
-        
+
     def scrollbar_autohide(self,vbar, hbar, widget):
         """自动隐藏滚动条"""
         def show():
@@ -50,7 +50,7 @@ class WinGUI(Window):
         if hbar: hbar.bind("<Enter>", lambda e: show())
         if hbar: hbar.bind("<Leave>", lambda e: hide())
         widget.bind("<Leave>", lambda e: hide())
-    
+
     def v_scrollbar(self,vbar, widget, x, y, w, h, pw, ph):
         widget.configure(yscrollcommand=vbar.set)
         vbar.config(command=widget.yview)
@@ -102,7 +102,7 @@ class WinGUI(Window):
         for text, width in columns.items():  # 批量设置列属性
             tk_table.heading(text, text=text, anchor='center')
             tk_table.column(text, anchor='center', width=width, stretch=True)  # stretch 不自动拉伸
-        
+
         tk_table.place(relx=0.2407, rely=0.1750, relwidth=0.7222, relheight=0.5500)
         self.create_bar(parent, tk_table,True, False,130, 70, 390,220,540,400)
         return tk_table
@@ -149,7 +149,7 @@ class WinGUI(Window):
         return cb
     def __tk_select_box_select_method(self,parent):
         cb = Combobox(parent, state="readonly", bootstyle="primary")
-        cb['values'] = ("数字")
+        cb['values'] = ("数字","小写字母","大写字母")
         cb.set("数字")
         cb.place(relx=0.0259, rely=0.1750, relwidth=0.1852, relheight=0.0750)
         return cb
@@ -165,10 +165,15 @@ class Win(WinGUI):
         menu = Menu(self,tearoff=False)
         menu.add_command(label="导出结果",command=self.ctl.save_txt)
         return menu
+    def convert_letter_to_number(self,value):
+    # 如果输入的是单个字母（忽略大小写），将其转换为对应的数字
+        if isinstance(value, str) and len(value) == 1 and value.isalpha():
+            return ord(value.lower()) - ord('a') + 1
+        return int(value)
     def __event_bind(self):
-        self.tk_button_create_num.bind('<Button-1>', lambda event: self.ctl.create_number( 
-        int(self.tk_input_start_num.get()),          # 最小值
-        int(self.tk_input_end_num.get()),            # 最大值
+        self.tk_button_create_num.bind('<Button-1>', lambda event: self.ctl.create_number(
+        self.convert_letter_to_number(self.tk_input_start_num.get()),  # 最小值
+        self.convert_letter_to_number(self.tk_input_end_num.get()),    # 最大值
         int(self.tk_input_generation_num.get()),     # 生成数量
         self.tk_select_box_repeat_if.get(),          # 是否重复
         self.tk_select_box_select_method.get(),      # 生成方法
