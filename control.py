@@ -115,8 +115,8 @@ class Controller:
         if method == "密码":
             remove_least = special_setting.get("password", {}).get("remove_least", False)
             if remove_least:
-                start_num = max(0, start_num)
-                end_num = max(0, end_num, start_num)
+                start_num = max(1, start_num)
+                end_num = max(1, end_num, start_num)
             else:
                 start_num = max(10, start_num)
                 end_num = max(10, end_num, start_num)
@@ -184,27 +184,31 @@ class Controller:
             return []
 
         passwords = []
-
+        max_attempts = 100
         for _ in range(generation_num):
-            while True:
+            for attempt in range(max_attempts):
                 password_length = random.randint(min_length, max_length)
                 password = ''.join(random.choice(characters) for _ in range(password_length))
 
                 if exclude_similar_chars:# 检查是否包含至少一个大写字母、小写字母、数字和特殊符号
-                    if (not include_uppers or any(c in uppers for c in password)) and \
-                    (not include_lowers or any(c in lowers for c in password)) and \
-                    (not include_numbers or any(c in numbers for c in password)) and \
-                    (not include_special_chars or any(c in special_chars for c in password)):
+                    if password_length >= 4:
+                        if (not include_uppers or any(c in uppers for c in password)) and \
+                        (not include_lowers or any(c in lowers for c in password)) and \
+                        (not include_numbers or any(c in numbers for c in password)) and \
+                        (not include_special_chars or any(c in special_chars for c in password)):
 
-                        def has_consecutive_sequence(s):
-                            for i in range(len(s) - 2):
-                                if ord(s[i+1]) == ord(s[i]) + 1 == ord(s[i+2]) - 1:
-                                    return True
-                            return False
+                            def has_consecutive_sequence(s):
+                                for i in range(len(s) - 2):
+                                    if ord(s[i+1]) == ord(s[i]) + 1 == ord(s[i+2]) - 1:
+                                        return True
+                                return False
 
-                        if not has_consecutive_sequence(password):
-                            passwords.append(password)
-                            break
+                            if not has_consecutive_sequence(password):
+                                passwords.append(password)
+                                break
+                    else:
+                        passwords.append(password)
+                        break
                 else:
                     passwords.append(password)
                     break
