@@ -4,6 +4,7 @@ from tkinter import filedialog
 import string
 from openpyxl import load_workbook
 import xlrd
+import re
 
 class Controller:
     ui: object
@@ -109,67 +110,104 @@ class Controller:
                     generation_num = available_range_size
                 return random.sample(range(start_num, end_num + 1), generation_num)
 
-    def create_number(self, start_num, end_num, generation_num, repeat_if, method, clear_if):
-        if start_num > end_num:
-            start_num, end_num = end_num, start_num
+    def validate_password_strength(self, password):
+        # 使用正则表达式检查密码是否包含大写字母、小写字母、数字和特殊字符
+        has_upper = bool(re.search(r'[A-Z]', password))
+        has_lower = bool(re.search(r'[a-z]', password))
+        has_digit = bool(re.search(r'\d', password))
+        has_special = bool(re.search(r'[!@#%^&*(),.?":{}|<>]', password))
 
-        if method in ["小写字母", "大写字母"]:
-            characters_range = self.get_characters_range(method, start_num, end_num)
-            generated_numbers = self.generate_numbers_from_characters(start_num, end_num, generation_num, repeat_if, characters_range)
-        elif method not in ["数字", "大写字母", "小写字母"] and self.load_if:
-            start_num = max(1, start_num)  # 如果 start_num 是负数 设置为1
-            end_num = max(1, end_num)
-            names_from_excel = self.handle_excel_data(method, end_num, self.load_if)
-            generated_numbers = self.generate_numbers_from_range(start_num, end_num, generation_num, repeat_if, load_num=len(names_from_excel))
+        # 根据符合的条件数量，判断密码强度
+        strength = sum([has_upper, has_lower, has_digit, has_special])
+
+        if strength == 4:
+            return "强密码"
+        elif strength == 3:
+            return "中密码"
         else:
-            generated_numbers = self.generate_numbers_from_range(start_num, end_num, generation_num, repeat_if)
+            return "低密码"
+
+    def create_number(self, start_num, end_num, generation_num, repeat_if, method, clear_if):
+        if method == "密码":
+            start_num = max(10, start_num)
+            end_num = max(10, end_num, start_num)
+            self.ui.tk_input_start_num.delete(0, "end")
+            self.ui.tk_input_start_num.insert(0, start_num)
+            self.ui.tk_input_end_num.delete(0, "end")
+            self.ui.tk_input_end_num.insert(0, end_num)
+            generated_numbers = self.generate_random_passwords(start_num, end_num, generation_num)
+        else:
+            if start_num > end_num:
+                start_num, end_num = end_num, start_num
+
+            if method in ["小写字母", "大写字母"]:
+                characters_range = self.get_characters_range(method, start_num, end_num)
+                generated_numbers = self.generate_numbers_from_characters(start_num, end_num, generation_num, repeat_if, characters_range)
+            elif method not in ["数字", "大写字母", "小写字母", "密码"] and self.load_if:
+                start_num = max(1, start_num)
+                end_num = max(1, end_num)
+                names_from_excel = self.handle_excel_data(method, end_num, self.load_if)
+                generated_indices = self.generate_numbers_from_range(start_num, end_num, generation_num, repeat_if, load_num=len(names_from_excel))
+                generated_numbers = [names_from_excel[i-1] for i in generated_indices]
+            else:
+                generated_numbers = self.generate_numbers_from_range(start_num, end_num, generation_num, repeat_if)
 
         if clear_if == "自动清除":
             self.ui.tk_table_num_collect.delete(*self.ui.tk_table_num_collect.get_children())
 
         for i, num in enumerate(generated_numbers, start=1):
-            if method in ["小写字母", "大写字母"]:
-                display_value = num
-            elif method != "数字" and self.load_if:
-                display_value = names_from_excel[num - 1] if num - 1 < len(names_from_excel) else ''
+            display_value = num
+            if method == "密码":
+                password_strength = self.validate_password_strength(num)
+                self.ui.tk_label_now_num.config(text=password_strength)
             else:
-                display_value = num
-
-            self.ui.tk_label_now_num.config(text=display_value)
+                self.ui.tk_label_now_num.config(text=display_value)
             self.ui.update()
             time.sleep(0.02)
             self.ui.tk_table_num_collect.insert('', 'end', values=(i, display_value))
+
+    def generate_random_passwords(self, min_length, max_length, generation_num):
+        characters = string.ascii_letters + string.digits + "!@#%^&*"
+        passwords = []
+
+        for _ in range(generation_num):
+            password_length = random.randint(min_length, max_length)
+            password = ''.join(random.choice(characters) for _ in range(password_length))
+            passwords.append(password)
+
+        return passwords
 
 
     def clear_table(self,evt):
         self.ui.tk_table_num_collect.delete(*self.ui.tk_table_num_collect.get_children())
 
     def load_execl(self, evt):
-        file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx;*.xls")])
-        if file_path:
-            self.load_if = file_path
-            self.ui.tk_label_load_label.config(text=file_path)
+        if not self.load_if:
+            file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx;*.xls")])
+            if file_path:
+                self.load_if = file_path
+                self.ui.tk_label_load_label.config(text=file_path)
 
-            # 根据文件扩展名决定使用哪个库
-            if file_path.endswith('.xlsx'):
-                wb = load_workbook(file_path)
-                sheet = wb.active  # 获取活动工作表
-                column_count = sheet.max_column
-            elif file_path.endswith('.xls'):
-                wb = xlrd.open_workbook(file_path)
-                sheet = wb.sheet_by_index(0)  # 获取第一个工作表
-                column_count = sheet.ncols  # 获取列数
-            else:
-                self.ui.tk_label_load_label.config(text="不支持的文件格式")
-                return
+                # 根据文件扩展名决定使用哪个库
+                if file_path.endswith('.xlsx'):
+                    wb = load_workbook(file_path)
+                    sheet = wb.active  # 获取活动工作表
+                    column_count = sheet.max_column
+                elif file_path.endswith('.xls'):
+                    wb = xlrd.open_workbook(file_path)
+                    sheet = wb.sheet_by_index(0)  # 获取第一个工作表
+                    column_count = sheet.ncols  # 获取列数
+                else:
+                    self.ui.tk_label_load_label.config(text="不支持的文件格式")
+                    return
 
-            cb = self.ui.tk_select_box_select_method  # 调用创建Combobox的方法
-            column_options = ["数字", "小写字母", "大写字母"] + [f"第{i}列" for i in range(1, column_count + 1)]
-            cb['values'] = column_options  # 设置Combobox的选项为列数的范围
-            cb.set("第1列")  # 默认选择第一列
+                cb = self.ui.tk_select_box_select_method  # 调用创建Combobox的方法
+                column_options = ["数字", "小写字母", "大写字母","密码"] + [f"第{i}列" for i in range(1, column_count + 1)]
+                cb['values'] = column_options  # 设置Combobox的选项为列数的范围
+                cb.set("第1列")  # 默认选择第一列
         else:
             self.load_if = None
             self.ui.tk_label_load_label.config(text="目前读取内容：空")
             cb = self.ui.tk_select_box_select_method
-            cb['values'] = ["数字", "小写字母", "大写字母"]
+            cb['values'] = ["数字", "小写字母", "大写字母","密码"]
             cb.set("数字")

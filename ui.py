@@ -3,6 +3,7 @@ from tkinter import *
 from tkinter.ttk import *
 from ttkbootstrap import *
 from pytkUI.widgets import *
+from tkinter import messagebox
 class WinGUI(Window):
     def __init__(self):
         super().__init__(themename="cosmo", hdpi=False)
@@ -128,7 +129,7 @@ class WinGUI(Window):
         btn.place(relx=0.6167, rely=0.7750, relwidth=0.1778, relheight=0.0750)
         return btn
     def __tk_button_load_tab(self,parent):
-        btn = Button(parent, text="读取Excel生成", takefocus=False,bootstyle="default")
+        btn = Button(parent, text="读取Excel/初始化", takefocus=False,bootstyle="default")
         btn.place(relx=0.3241, rely=0.7750, relwidth=0.2778, relheight=0.0750)
         return btn
     def __tk_label_load_label(self,parent):
@@ -149,7 +150,7 @@ class WinGUI(Window):
         return cb
     def __tk_select_box_select_method(self,parent):
         cb = Combobox(parent, state="readonly", bootstyle="primary")
-        cb['values'] = ("数字","小写字母","大写字母")
+        cb['values'] = ("数字","小写字母","大写字母","密码")
         cb.set("数字")
         cb.place(relx=0.0259, rely=0.1750, relwidth=0.1852, relheight=0.0750)
         return cb
@@ -180,7 +181,49 @@ class Win(WinGUI):
         self.tk_select_box_save_clear_box.get() ))   # 是否自动清除
         self.tk_button_clear_tab.bind('<Button-1>',self.ctl.clear_table)
         self.tk_button_load_tab.bind('<Button-1>',self.ctl.load_execl)
+        self.tk_table_num_collect.bind("<Button-3>", self.show_context_menu)  # 右键点击
+        self.tk_table_num_collect.bind("<Button-1>", self.copy_selection)  # 右键点击
+        self.tk_table_num_collect.bind("<Control-c>", self.copy_selection)  # ctrlc
+        self.tk_table_num_collect.bind("<Motion>", self.on_mouse_motion)    #鼠标移动
         pass
+    def on_mouse_motion(self, event):
+        # 获取鼠标下的表格行号
+        item = self.tk_table_num_collect.identify_row(event.y)
+        if item:
+            # 取消所有当前选中的项
+            self.tk_table_num_collect.selection_remove(self.tk_table_num_collect.selection())
+            # 选中鼠标下的行
+            self.tk_table_num_collect.selection_add(item)
+    def show_context_menu(self, event):
+        context_menu = Menu(self.tk_table_num_collect, tearoff=0)
+        context_menu.add_command(label="复制", command=self.copy_selection)
+        context_menu.add_command(label="删除", command=self.delete_selection)
+        context_menu.post(event.x_root, event.y_root)
+    def copy_selection(self, event=None):
+        selected_items = self.tk_table_num_collect.selection()
+        if selected_items:
+            # 将选中的内容拼接为字符串，列之间用制表符，行之间用换行符
+            selected_text = "\n".join(
+                [str(self.tk_table_num_collect.item(item, 'values')[1]) for item in selected_items]
+            )
+            # 将拼接好的字符串复制到剪贴板
+            self.tk_table_num_collect.clipboard_clear()
+            self.tk_table_num_collect.clipboard_append(selected_text)
+            # 更新系统剪贴板
+            self.tk_table_num_collect.update()  # 确保剪贴板更新
+            for item in selected_items:
+                original_value = self.tk_table_num_collect.item(item, 'values')
+                new_value = (original_value[0], "已复制到剪贴板")
+                self.tk_table_num_collect.item(item, values=new_value)
+                # 设置延迟，之后恢复原始内容
+                self.tk_table_num_collect.after(500, lambda i=item, v=original_value: self.tk_table_num_collect.item(i, values=v))
+    def delete_selection(self):
+        selected_items = self.tk_table_num_collect.selection()
+        if selected_items:
+            for item in selected_items:
+                self.tk_table_num_collect.delete(item)
+
+
     def __style_config(self):
         sty = Style()
         sty.configure(self.new_style(self.tk_label_from_label),font=("微软雅黑",-22,"bold"))
@@ -190,7 +233,7 @@ class Win(WinGUI):
         sty.configure(self.new_style(self.tk_label_end_label),font=("微软雅黑",-18,"bold"))
         sty.configure(self.new_style(self.tk_label_generation_label),font=("微软雅黑",-18,"bold"))
         sty.configure(self.new_style(self.tk_button_clear_tab),font=("微软雅黑",-15,"bold"))
-        sty.configure(self.new_style(self.tk_button_load_tab),font=("微软雅黑",-15,"bold"))
+        sty.configure(self.new_style(self.tk_button_load_tab),font=("微软雅黑",-14,"bold"))
         sty.configure(self.new_style(self.tk_label_load_label),font=("微软雅黑",-13,"underline"))
         sty.configure("Treeview", font=("微软雅黑", 11))  # 单元格字体大小
         pass
