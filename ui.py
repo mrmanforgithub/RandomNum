@@ -5,6 +5,7 @@ from ttkbootstrap import *
 from pytkUI.widgets import *
 from tkinter import messagebox
 import json
+import re
 
 class WinGUI(Window):
     def __init__(self):
@@ -130,7 +131,7 @@ class WinGUI(Window):
         btn.place(relx=0.6167, rely=0.7750, relwidth=0.1778, relheight=0.0750)
         return btn
     def __tk_button_load_tab(self,parent):
-        btn = Button(parent, text="读取Excel/初始化", takefocus=False,bootstyle="default")
+        btn = Button(parent, text="读取文件/初始化", takefocus=False,bootstyle="default")
         btn.place(relx=0.3241, rely=0.7750, relwidth=0.2778, relheight=0.0750)
         return btn
     def __tk_label_load_label(self,parent):
@@ -151,7 +152,7 @@ class WinGUI(Window):
         return cb
     def __tk_select_box_select_method(self,parent):
         cb = Combobox(parent, state="readonly", bootstyle="primary")
-        cb['values'] = ("数字","字母","密码")
+        cb['values'] = ("数字","字母","密码", "自定义")
         cb.set("数字")
         cb.place(relx=0.0259, rely=0.1750, relwidth=0.1852, relheight=0.0750)
         return cb
@@ -172,8 +173,20 @@ class Win(WinGUI):
                 "include_special_chars": True,
                 "exclude_similar_chars": False,
                 "remove_least": False
+            },
+            'random_settings':{
+            'distribution_type': 'uniform',
+            'generate_content': '',
+            'append_unit': '',
+            "append_prefix":"",
+            "append_interval":"",
+            'enable_cross_generation': False,
+            'enable_content_fix': True,
+            "enable_random_cross":False
             }
         }
+        self.settings_window = None
+        self.content_window = None
         super().__init__()
         self.__event_bind()
         self.__style_config()
@@ -198,45 +211,66 @@ class Win(WinGUI):
             self.show_letter_settings()
         elif selected_method == '密码':
             self.show_password_settings()
+        elif selected_method == '自定义':
+            self.show_self_settings()
+        else:
+            messagebox.showinfo("提示", "当前项目无配置选项")
+
+    def on_close_settings_window(self):
+        self.settings_window.destroy()
+        self.settings_window = None
 
     def show_number_settings(self):
+        if self.settings_window is not None and self.settings_window.winfo_exists():
+            # 如果窗口已经存在，将其置顶
+            self.settings_window.lift()
+            return
         # 数字模式的设置窗口
-        settings_window = Toplevel(self)
-        settings_window.title("数字设置")
-        settings_window.geometry("250x120")
+        self.settings_window = Toplevel(self)
+        self.settings_window.title("数字设置")
+        self.settings_window.geometry("250x120")
 
-        Label(settings_window, text="浮点数位数:").place(x=20, y=20, width=80, height=25)
-        float_precision = Entry(settings_window)
+        Label(self.settings_window, text="浮点数位数:").place(x=20, y=20, width=80, height=25)
+        float_precision = Entry(self.settings_window)
         float_precision.insert(0, self.current_settings.get("number", {}).get("float_precision", 0))
         float_precision.place(x=110, y=20, width=100, height=25)
 
-        Button(settings_window, text="保存", command=lambda: self.save_settings(
+        Button(self.settings_window, text="保存", command=lambda: self.save_settings(
             {"mode": "number", "float_precision": max(int(float_precision.get()),0)},
-        settings_window
+        self.settings_window
         )).place(x=75, y=70, width=100, height=30)
-
+        self.settings_window.protocol("WM_DELETE_WINDOW", self.on_close_settings_window)
 
     def show_letter_settings(self):
+        if self.settings_window is not None and self.settings_window.winfo_exists():
+            # 如果窗口已经存在，将其置顶
+            self.settings_window.lift()
+            return
         # 字母模式的设置窗口
-        settings_window = Toplevel(self)
-        settings_window.title("字母设置")
-        settings_window.geometry("300x120")
+        self.settings_window = Toplevel(self)
+        self.settings_window.title("字母设置")
+        self.settings_window.geometry("300x120")
 
         letter_case = StringVar(value=self.current_settings.get("letter", {}).get("letter_case", "lower"))
-        Radiobutton(settings_window, text="小写字母", variable=letter_case, value="lower").place(x=20, y=20, width=80, height=25)
-        Radiobutton(settings_window, text="大写字母", variable=letter_case, value="upper").place(x=110, y=20, width=80, height=25)
-        Radiobutton(settings_window, text="大小写混合", variable=letter_case, value="mixed").place(x=200, y=20, width=80, height=25)
+        Radiobutton(self.settings_window, text="小写字母", variable=letter_case, value="lower").place(x=20, y=20, width=80, height=25)
+        Radiobutton(self.settings_window, text="大写字母", variable=letter_case, value="upper").place(x=110, y=20, width=80, height=25)
+        Radiobutton(self.settings_window, text="大小写混合", variable=letter_case, value="mixed").place(x=200, y=20, width=80, height=25)
 
-        Button(settings_window, text="保存", command=lambda: self.save_settings(
+        Button(self.settings_window, text="保存", command=lambda: self.save_settings(
             {"mode": "letter", "letter_case": letter_case.get()},
-        settings_window
+        self.settings_window
         )).place(x=100, y=70, width=100, height=30)
+        self.settings_window.protocol("WM_DELETE_WINDOW", self.on_close_settings_window)
 
     def show_password_settings(self):
+        if self.settings_window is not None and self.settings_window.winfo_exists():
+            # 如果窗口已经存在，将其置顶
+            self.settings_window.lift()
+            return
         # 密码模式的设置窗口
-        settings_window = Toplevel(self)
-        settings_window.title("密码设置")
-        settings_window.geometry("280x300")
+        self.settings_window = Toplevel(self)
+        self.settings_window.title("密码设置")
+        self.settings_window.geometry("280x300")
 
         include_numbers = BooleanVar(value=self.current_settings.get("password", {}).get("include_numbers", "True"))
         include_lower = BooleanVar(value=self.current_settings.get("password", {}).get("include_lower", "True"))
@@ -246,14 +280,14 @@ class Win(WinGUI):
         remove_least = BooleanVar(value=self.current_settings.get("password", {}).get("remove_least", "False"))
 
         # 使用 place 方法定位组件
-        Checkbutton(settings_window, text="包含数字", variable=include_numbers).place(x=20, y=20, width=120, height=25)
-        Checkbutton(settings_window, text="包含小写字母", variable=include_lower).place(x=20, y=60, width=120, height=25)
-        Checkbutton(settings_window, text="包含大写字母", variable=include_character).place(x=20, y=100, width=120, height=25)
-        Checkbutton(settings_window, text="包含特殊符号", variable=include_special_chars).place(x=20, y=140, width=120, height=25)
-        Checkbutton(settings_window, text="提高密码强度", variable=exclude_similar_chars).place(x=20, y=180, width=120, height=25)
-        Checkbutton(settings_window, text="去除最小密码长度", variable=remove_least).place(x=20, y=220, width=120, height=25)
+        Checkbutton(self.settings_window, text="包含数字", variable=include_numbers).place(x=20, y=20, width=120, height=25)
+        Checkbutton(self.settings_window, text="包含小写字母", variable=include_lower).place(x=20, y=60, width=120, height=25)
+        Checkbutton(self.settings_window, text="包含大写字母", variable=include_character).place(x=20, y=100, width=120, height=25)
+        Checkbutton(self.settings_window, text="包含特殊符号", variable=include_special_chars).place(x=20, y=140, width=120, height=25)
+        Checkbutton(self.settings_window, text="提高密码强度", variable=exclude_similar_chars).place(x=20, y=180, width=120, height=25)
+        Checkbutton(self.settings_window, text="去除最小密码长度", variable=remove_least).place(x=20, y=220, width=120, height=25)
 
-        Button(settings_window, text="保存", command=lambda: self.save_settings(
+        Button(self.settings_window, text="保存", command=lambda: self.save_settings(
             {"mode": "password",
             "include_numbers": include_numbers.get(),
             "include_lower": include_lower.get(),
@@ -261,16 +295,232 @@ class Win(WinGUI):
             "include_special_chars": include_special_chars.get(),
             "exclude_similar_chars": exclude_similar_chars.get(),
             "remove_least": remove_least.get(),},
-        settings_window
+        self.settings_window
         )).place(x=100, y=260, width=100, height=30)
+        self.settings_window.protocol("WM_DELETE_WINDOW", self.on_close_settings_window)
 
-    def save_settings(self, settings, window):
+    def show_self_settings(self):
+        if self.settings_window is not None and self.settings_window.winfo_exists():
+            # 如果窗口已经存在，将其置顶
+            self.settings_window.lift()
+            return
+        def get_current_random_settings():
+            return {
+                "mode": "random_settings",
+                "distribution_type": distribution_type.get(),
+                "generate_content": generate_content.get(),
+                "append_unit": append_unit.get(),
+                "append_prefix": append_prefix.get(),
+                "append_interval": append_interval.get(),
+                "enable_cross_generation": enable_cross_generation.get(),
+                "enable_content_fix": enable_content_fix.get(),
+                "enable_random_cross": enable_random_cross.get()
+            }
+
+        # 启用组合生成选项
+        def toggle_cross_generation():
+            if enable_cross_generation.get():
+                interval_entry.config(state=NORMAL)
+                random_cross_radiobutton.config(state=NORMAL)
+            else:
+                interval_entry.config(state=DISABLED)
+                random_cross_radiobutton.config(state=DISABLED)
+                enable_random_cross.set(False)
+                interval_entry.delete(0, END)
+            self.save_settings(get_current_random_settings(), self.settings_window, False)
+
+        # 随机数模式的设置窗口
+        self.settings_window = Toplevel(self)
+        self.settings_window.title("随机数设置")
+        self.settings_window.geometry("350x390")  # 调整窗口大小以适应新增内容
+
+        # 定义变量
+        distribution_type = StringVar(value=self.current_settings.get("random_settings", {}).get("distribution_type", "uniform"))
+        generate_content = StringVar(value=self.current_settings.get("random_settings", {}).get("generate_content", ""))
+        append_unit = StringVar(value=self.current_settings.get("random_settings", {}).get("append_unit", ""))
+        append_prefix = StringVar(value=self.current_settings.get("random_settings", {}).get("append_prefix", ""))
+        append_interval = StringVar(value=self.current_settings.get("random_settings", {}).get("append_interval", ""))
+        enable_cross_generation = BooleanVar(value=self.current_settings.get("random_settings", {}).get("enable_cross_generation", False))
+        enable_content_fix = BooleanVar(value=self.current_settings.get("random_settings", {}).get("enable_content_fix", True))
+        enable_random_cross = BooleanVar(value=self.current_settings.get("random_settings", {}).get("enable_random_cross", False))
+
+        # 定位组件
+        Label(self.settings_window, text="选择分布类型:").place(x=20, y=20, width=120, height=25)
+        Radiobutton(self.settings_window, text="均匀分布", variable=distribution_type, value="uniform").place(x=140, y=20, width=120, height=25)
+        Radiobutton(self.settings_window, text="正态分布", variable=distribution_type, value="normal").place(x=140, y=60, width=120, height=25)
+
+        Label(self.settings_window, text="附加开头:").place(x=20, y=100, width=120, height=25)
+        Entry(self.settings_window, textvariable=append_prefix).place(x=140, y=100, width=120, height=25)
+
+        Label(self.settings_window, text="附加末尾:").place(x=20, y=140, width=120, height=25)
+        Entry(self.settings_window, textvariable=append_unit).place(x=140, y=140, width=120, height=25)
+
+        Label(self.settings_window, text="附加间隔:").place(x=20, y=180, width=120, height=25)
+        interval_entry = Entry(self.settings_window, textvariable=append_interval)
+        interval_entry.place(x=140, y=180, width=120, height=25)
+
+        Checkbutton(self.settings_window, text="启用组合生成", variable=enable_cross_generation, command=toggle_cross_generation).place(x=20, y=220, width=150, height=25)
+        # 随机交叉选项
+        random_cross_radiobutton = Checkbutton(self.settings_window, text="随机组合", variable=enable_random_cross,command=lambda:self.save_settings(get_current_random_settings(), self.settings_window, False))
+        random_cross_radiobutton.place(x=190, y=220, width=150, height=25)
+
+        if not enable_cross_generation.get():
+            interval_entry.config(state=DISABLED)
+            random_cross_radiobutton.config(state=DISABLED)  # 默认禁用
+        else:
+            interval_entry.config(state=NORMAL)
+            random_cross_radiobutton.config(state=NORMAL)  # 默认禁用
+
+        Checkbutton(self.settings_window, text="生成内容纠正", variable=enable_content_fix,command=
+        lambda: self.save_settings(get_current_random_settings(), self.settings_window, False)).place(x=20, y=260, width=150, height=25)
+
+        # 生成内容输入按钮，设置为居中
+        Button(self.settings_window, text="生成内容", command=lambda: self.show_content_input(generate_content)).place(x=0, y=300, width=350, height=40)
+
+        # 保存按钮，设置为居中并加宽
+        Button(self.settings_window, text="保存", command=lambda: self.save_settings(
+            get_current_random_settings(), self.settings_window
+        )).place(x=0, y=350, width=170, height=40)
+
+        Button(self.settings_window, text="保存并加载", command=lambda: (
+            self.save_settings(
+                get_current_random_settings(), self.settings_window
+            ),
+            self.set_content_list(generate_content, self.settings_window)
+        )).place(x=180, y=350, width=170, height=40)
+        self.settings_window.protocol("WM_DELETE_WINDOW", self.on_close_settings_window)
+
+    def show_content_input(self, content_var):
+        if self.content_window is not None and self.content_window.winfo_exists():
+            # 如果窗口已经存在，将其置顶
+            self.content_window.lift()
+            return
+        # 创建一个输入窗口让用户填写生成内容
+        self.content_window = Toplevel(self)
+        self.content_window.title("生成内容")
+        self.content_window.geometry("300x420")
+
+        Label(self.content_window, text="输入生成内容(内容格式如下):").place(x=20, y=20, width=280, height=25)
+
+        content_text = Text(self.content_window, wrap="word")
+        content_text.place(x=20, y=60, width=260, height=300)
+
+        content_text.insert(END, self.current_settings["random_settings"]["generate_content"])
+
+        default_text = '''{
+        "日期": ["2024-09-03", "2024-09-23", "2024-10-08"],
+        "节日": ["中秋节", "国庆节", "春节"],
+        "节气": ["白露", "秋分", "寒露"],
+        "注意":["使用json的格式 键:[值,值,值,···], 不同的行之间也要写逗号分开"]
+        }'''
+
+        # 插入默认文字
+        if not content_text.get("1.0", END).strip():
+            content_text.insert(END, default_text)
+            content_text.config(fg="gray")
+
+        def on_focus_in(event):
+            # 当用户点击文本框时，如果当前内容是默认提示文字，则清空文本框并设置文字颜色为黑色
+            if content_text.get("1.0", END).strip() == default_text:
+                content_text.delete("1.0", END)
+                content_text.config(fg="black")
+
+        def on_focus_out(event):
+            # 当文本框失去焦点时，如果文本框为空，则重新插入默认提示文字并设置文字颜色为灰色
+            if not content_text.get("1.0", END).strip():
+                content_text.insert(END, default_text)
+                content_text.config(fg="gray")
+
+        # 绑定事件
+        content_text.bind("<FocusIn>", on_focus_in)
+        content_text.bind("<FocusOut>", on_focus_out)
+
+        # 确定按钮
+        Button(self.content_window, text="确定", command=lambda: self.save_content(content_var, content_text, self.content_window,default_text)).place(x=100, y=380, width=100, height=30)
+
+        self.content_window.protocol("WM_DELETE_WINDOW", self.on_close_content_window)
+
+    def on_close_content_window(self):
+        self.content_window.destroy()
+        self.content_window = None  # 重置为None 表示窗口已关闭
+
+    def set_content_list(self, generate_content,setting_window):
+        generate_content = generate_content.get()
+        try:
+            generate_content = json.loads(generate_content)
+        except json.JSONDecodeError:
+            messagebox.showerror("错误", "生成内容格式错误,无法解析为JSON")
+            return
+        setting_window.destroy()
+        # 获取键列表
+        keys = list(generate_content.keys())
+
+        if not keys:
+            messagebox.showerror("错误", "生成内容为空, 无法加载")
+            return
+
+        # 设置tk_select_box_select_method的选项
+        cb = self.tk_select_box_select_method
+        cb['values'] = ["数字", "字母", "密码", "自定义"]+keys
+        cb.set(keys[0])  # 默认选择第一个选项
+
+        messagebox.showinfo("提示", "内容已成功加载到列表")
+
+    def save_content(self, content_var, content_text, content_window, default_text):
+        fix_enable = self.current_settings.get("random_settings",{}).get("enable_content_fix",True)
+        # 获取文本框中的内容并保存
+        if content_text.get("1.0", "end-1c").strip() == default_text:
+            content_text.delete("1.0", "end")
+            content_var.set(content_text.get("1.0", "end-1c").strip())
+            self.current_settings["random_settings"]["generate_content"] = content_var.get()
+            content_window.destroy()
+            return
+        str_content = content_text.get("1.0", "end-1c").strip()
+        if fix_enable:
+            str_content = content_text.get("1.0", "end-1c").strip().rstrip(',')
+
+            if not str_content.startswith('{'):
+                str_content = '{' + str_content
+            if not str_content.endswith('}'):
+                str_content = str_content + '}'
+
+            symbol_map = {
+                '：': ':', '（': '(', '）': ')',
+                '【': '[', '】': ']', '｛': '{',
+                '｝': '}', '，': ','
+            }
+            for zh_symbol, en_symbol in symbol_map.items():
+                str_content = re.sub(zh_symbol, en_symbol, str_content)
+            # 将中文冒号替换为英文冒号
+            str_content = re.sub(r'：', ':', str_content)
+
+            # 自动为键添加引号（支持中文或其他非字母字符）
+            str_content = re.sub(r'([^"\{\}\[\]\s:,]+)\s*:', r'"\1":', str_content)
+
+            # 自动为方括号中的字符串添加引号，并处理冒号后的空格
+            def add_quotes(match):
+                # 移除冒号后方括号内的空格
+                content = match.group(0)
+                content = re.sub(r':\s*\[', ': [', content)
+                # 添加引号
+                items = content[content.index('[') + 1:content.index(']')].split(',')
+                items = [f'"{item.strip()}"' if not (item.strip().startswith('"') and item.strip().endswith('"')) else item.strip() for item in items]
+                return '[' + ', '.join(items) + ']'
+
+            str_content = re.sub(r'\[[^\[\]]*\]', add_quotes, str_content)
+
+        content_var.set(str_content)
+        content_window.destroy()
+        self.current_settings["random_settings"]["generate_content"] = content_var.get()
+
+    def save_settings(self, settings, window,close=True):
         # 将设置保存为 JSON 字符串
         mode = settings.get("mode")
         if mode:
             self.current_settings[mode] = settings
             del self.current_settings[mode]["mode"]
-        window.destroy()
+        if close:
+            window.destroy()
 
     def convert_letter_to_number(self,value):
     # 如果输入的是单个字母（忽略大小写），将其转换为对应的数字
@@ -289,8 +539,9 @@ class Win(WinGUI):
 
         self.tk_button_clear_tab.bind('<Button-1>',self.ctl.clear_table)
         self.tk_button_load_tab.bind('<Button-1>',self.ctl.load_execl)
+        self.tk_select_box_select_method.bind("<<ComboboxSelected>>", self.on_select_method_change)
         self.tk_table_num_collect.bind("<Button-3>", self.show_context_menu)  # 右键点击
-        self.tk_table_num_collect.bind("<Button-1>", self.copy_selection)  # 右键点击
+        self.tk_table_num_collect.bind("<Button-1>", self.copy_selection)  # 左键点击
         self.tk_table_num_collect.bind("<Control-c>", self.copy_selection)  # ctrlc
         self.tk_table_num_collect.bind("<Motion>", self.on_mouse_motion)    #鼠标移动
         pass
@@ -330,7 +581,10 @@ class Win(WinGUI):
         if selected_items:
             for item in selected_items:
                 self.tk_table_num_collect.delete(item)
-
+    def on_select_method_change(self,event):
+        method = self.tk_select_box_select_method.get()
+        if method == "自定义" and self.current_settings["random_settings"]["generate_content"] =="":
+            self.show_self_settings()
 
     def __style_config(self):
         sty = Style()
